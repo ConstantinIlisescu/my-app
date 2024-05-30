@@ -1,26 +1,23 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import DynamicForm from "./DynamicForm";
+
+const jsonObject = {
+  name: "John Doe",
+  email: "john.doe@example.com",
+  age: 30,
+  newsletter: true,
+  address: {
+    street: "123 Main St",
+    city: "Anytown",
+    zip: {
+      one: "test",
+      two: [3, 5, 68],
+    },
+  },
+  hobbies: ["reading", "traveling", "swimming"],
+};
 
 function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
+  return <DynamicForm initialJsonObject={jsonObject} />;
 }
 
 export default App;
