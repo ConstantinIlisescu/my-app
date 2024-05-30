@@ -1,4 +1,8 @@
-import React, { useState, ChangeEvent, FormEvent, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import { Controlled as CodeMirror } from "react-codemirror2";
+import "codemirror/lib/codemirror.css";
+import "codemirror/theme/material.css";
+import "codemirror/mode/javascript/javascript"; // Import the JavaScript mode for JSON support
 
 type FormState = {
   [key: string]:
@@ -18,6 +22,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ initialJsonObject }) => {
   const [jsonInput, setJsonInput] = useState<string>(
     JSON.stringify(initialJsonObject, null, 2)
   );
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     try {
@@ -28,7 +33,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ initialJsonObject }) => {
     }
   }, [jsonInput]);
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
     const keys = name.split(".");
 
@@ -49,13 +54,74 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ initialJsonObject }) => {
     });
   };
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    console.log("Form Submitted:", formState);
+  const validateForm = () => {
+    const newErrors: { [key: string]: string } = {};
+    if (!formState.name) {
+      newErrors.name = "Name is required";
+    }
+    if (!formState.email) {
+      newErrors.email = "Email is required";
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  const handleJsonChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
-    setJsonInput(e.target.value);
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (validateForm()) {
+      console.log("Form Submitted:", formState);
+    }
+  };
+
+  const handleAddKey = (path: string) => {
+    const newKey = prompt("Enter new key:");
+    if (!newKey) return;
+
+    const type = prompt("Enter type (string, number, boolean, object, array):");
+    if (!type) return;
+
+    setFormState((prevState) => {
+      const newState = { ...prevState };
+      const keys = path.split(".");
+      let target = newState;
+      for (let i = 0; i < keys.length; i++) {
+        const key = keys[i];
+        if (i === keys.length - 1) {
+          if (Array.isArray(target)) {
+            // Ensure target is an array and assign based on the type
+            target.push(
+              type === "number"
+                ? 0
+                : type === "boolean"
+                ? false
+                : type === "object"
+                ? {}
+                : type === "array"
+                ? []
+                : ""
+            );
+          } else if (typeof target === "object" && target !== null) {
+            // Ensure target is an object and assign the new key-value pair
+            target[newKey] =
+              type === "number"
+                ? 0
+                : type === "boolean"
+                ? false
+                : type === "object"
+                ? {}
+                : type === "array"
+                ? []
+                : "";
+          }
+        } else {
+          // If the key does not exist, create an empty object
+          if (!target[key]) {
+            target[key] = {};
+          }
+        }
+      }
+      return newState;
+    });
   };
 
   useEffect(() => {
@@ -99,6 +165,9 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ initialJsonObject }) => {
             value={value}
             onChange={handleChange}
           />
+          {errors[fullPath] && (
+            <span style={{ color: "red" }}>{errors[fullPath]}</span>
+          )}
         </div>
       );
     } else if (Array.isArray(value)) {
@@ -106,6 +175,9 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ initialJsonObject }) => {
         <div key={fullPath}>
           <label>{key}</label>
           {value.map((item, index) => renderInput(`${index}`, item, fullPath))}
+          <button type="button" onClick={() => handleAddKey(fullPath)}>
+            Add Key
+          </button>
         </div>
       );
     } else if (typeof value === "object") {
@@ -115,6 +187,9 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ initialJsonObject }) => {
           {Object.keys(value).map((nestedKey) =>
             renderInput(nestedKey, value[nestedKey], fullPath)
           )}
+          <button type="button" onClick={() => handleAddKey(fullPath)}>
+            Add Key
+          </button>
         </fieldset>
       );
     } else {
@@ -132,10 +207,25 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ initialJsonObject }) => {
       </form>
       <div>
         <h3>JSON Representation</h3>
-        <textarea
-          style={{ width: "400px", height: "600px" }}
+        <CodeMirror
           value={jsonInput}
-          onChange={handleJsonChange}
+          options={{
+            mode: { name: "javascript", json: true },
+            theme: "material",
+            lineNumbers: true,
+            tabSize: 2,
+          }}
+          onBeforeChange={(editor, data, value) => {
+            setJsonInput(value);
+          }}
+          onChange={(editor, data, value) => {
+            try {
+              const parsedJson = JSON.parse(value);
+              setFormState(parsedJson);
+            } catch (e) {
+              // Handle JSON parsing error if necessary
+            }
+          }}
         />
       </div>
     </div>
